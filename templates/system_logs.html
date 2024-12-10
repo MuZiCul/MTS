@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统日志 - 机器翻译系统</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <style>
+        /* 添加导航栏高度样式 */
+        .navbar {
+            height: 80px;
+        }
+        
+        /* 导航栏标题样式 */
+        .navbar-brand {
+            font-size: 1.8rem !important;
+            line-height: 60px;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        /* 导航栏图标样式 */
+        .navbar-brand img {
+            margin-right: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .log-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        .log-entry {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .log-level {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        .log-level-INFO { 
+            background: #e3f2fd; 
+            color: #0d47a1;
+        }
+        .log-level-WARNING { 
+            background: #fff3e0; 
+            color: #e65100;
+        }
+        .log-level-ERROR { 
+            background: #ffebee; 
+            color: #b71c1c;
+        }
+        .log-level-DEBUG { 
+            background: #f3e5f5; 
+            color: #4a148c;
+        }
+        .log-details {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .filter-bar {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand">
+                <img src="{{ url_for('static', filename='favicon.ico') }}" 
+                     alt="翻译" 
+                     class="d-inline-block align-text-top me-2" 
+                     width="24" 
+                     height="24">
+                系统日志
+            </span>
+            <div>
+                <a href="/logs" class="btn btn-outline-light">翻译日志</a>
+                <button class="btn btn-outline-light ms-2" onclick="refreshLogs()">刷新</button>
+                <a href="/" class="btn btn-outline-light ms-2">返回翻译</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="log-container">
+        <div class="filter-bar">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <label class="me-2">日志级别：</label>
+                    <select class="form-select" onchange="filterLogs(this.value)">
+                        <option value="">全部</option>
+                        <option value="INFO">INFO</option>
+                        <option value="WARNING">WARNING</option>
+                        <option value="ERROR">ERROR</option>
+                        <option value="DEBUG">DEBUG</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div id="logs"></div>
+        <div id="pagination" class="d-flex justify-content-center mt-4"></div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let currentLevel = '';
+
+        function loadLogs(page = 1, level = '') {
+            const url = new URL('/api/system-logs', window.location.origin);
+            url.searchParams.set('page', page);
+            if (level) url.searchParams.set('level', level);
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const logsDiv = document.getElementById('logs');
+                    logsDiv.innerHTML = '';
+                    
+                    data.logs.forEach(log => {
+                        const logEntry = document.createElement('div');
+                        logEntry.className = 'log-entry';
+                        logEntry.innerHTML = `
+                            <div class="log-header">
+                                <div>
+                                    <span class="log-level log-level-${log.level}">${log.level}</span>
+                                    <span class="ms-2">${log.module}</span>
+                                </div>
+                                <span>${log.timestamp}</span>
+                            </div>
+                            <div>${log.message}</div>
+                            ${log.details ? `<div class="log-details">${log.details}</div>` : ''}
+                            <div class="mt-2 text-muted">
+                                <small>IP: ${log.ip_address}</small>
+                            </div>
+                        `;
+                        logsDiv.appendChild(logEntry);
+                    });
+                    
+                    updatePagination(data.current_page, data.pages);
+                    currentPage = data.current_page;
+                });
+        }
+
+        function updatePagination(currentPage, totalPages) {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+            
+            if (totalPages <= 1) return;
+            
+            const ul = document.createElement('ul');
+            ul.className = 'pagination';
+            
+            // 上一页
+            ul.appendChild(createPageItem('上一页', currentPage > 1, () => loadLogs(currentPage - 1, currentLevel)));
+            
+            // 页码
+            for (let i = 1; i <= totalPages; i++) {
+                ul.appendChild(createPageItem(i, true, () => loadLogs(i, currentLevel), i === currentPage));
+            }
+            
+            // 下一页
+            ul.appendChild(createPageItem('下一页', currentPage < totalPages, () => loadLogs(currentPage + 1, currentLevel)));
+            
+            pagination.appendChild(ul);
+        }
+
+        function createPageItem(text, enabled, onClick, active = false) {
+            const li = document.createElement('li');
+            li.className = `page-item ${active ? 'active' : ''} ${enabled ? '' : 'disabled'}`;
+            
+            const a = document.createElement('a');
+            a.className = 'page-link';
+            a.href = '#';
+            a.textContent = text;
+            if (enabled) {
+                a.onclick = (e) => {
+                    e.preventDefault();
+                    onClick();
+                };
+            }
+            
+            li.appendChild(a);
+            return li;
+        }
+
+        function filterLogs(level) {
+            currentLevel = level;
+            loadLogs(1, level);
+        }
+
+        function refreshLogs() {
+            loadLogs(currentPage, currentLevel);
+        }
+
+        // 初始加载
+        loadLogs();
+        
+        // 每30秒自动刷新
+        setInterval(refreshLogs, 30000);
+    </script>
+</body>
+</html>

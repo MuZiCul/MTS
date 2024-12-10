@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器翻译系统</title>
+    <!-- 添加 favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <!-- 引入Bootstrap样式文件 -->
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <!-- 添加 Bootstrap JS 和它的依赖 -->
+    <script src="{{ url_for('static', filename='js/popper.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <style>
+        body {
+            margin: 0;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+        
+        /* 导航栏样式 */
+        .navbar {
+            height: 80px;
+        }
+        
+        /* 导航栏标题样式 */
+        .navbar-brand {
+            font-size: 1.8rem !important;
+            line-height: 60px;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .translation-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        .translation-box {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .language-selector {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+            background-color: white;
+            min-width: 120px;
+        }
+        
+        .input-container {
+            position: relative;
+            width: 100%;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .char-counter {
+            color: #999;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            border: none;
+            resize: none;
+            font-size: 16px;
+            line-height: 1.5;
+            outline: none;
+            padding-bottom: 25px; /* 为计数器留出空间 */
+        }
+        
+        textarea::placeholder {
+            color: #999;
+        }
+        
+        .speech-button {
+            cursor: pointer;
+            padding: 5px;
+            color: #666;
+            background: none;
+            border: none;
+            outline: none;
+        }
+        
+        .speech-button:hover {
+            color: #333;
+        }
+        
+        /* 添加图标样式 */
+        .icon {
+            width: 16px;
+            height: 16px;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+        
+        .speech-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .speech-button {
+            cursor: pointer;
+            padding: 5px;
+            color: #666;
+            background: none;
+            border: none;
+            outline: none;
+        }
+        
+        .speech-button:hover {
+            color: #333;
+        }
+        
+        .icon {
+            width: 16px;
+            height: 16px;
+            vertical-align: middle;
+        }
+        
+        .speech-button.speaking {
+            color: #1a73e8;
+        }
+        
+        .speech-button.speaking .icon {
+            stroke: #1a73e8;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .copy-success {
+            color: #4caf50 !important;
+        }
+        
+        .copy-success .icon {
+            stroke: #4caf50;
+        }
+        
+        .image-upload-btn {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .image-upload-btn:hover {
+            background-color: #e9ecef;
+        }
+        
+        .translation-result {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 100px;
+        }
+        
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;  /* 允许在小屏幕上换行 */
+        }
+        
+        .modal-header .language-selector {
+            display: flex;
+            gap: 10px;
+            margin: 0;
+            align-items: center;
+        }
+        
+        .modal-header select {
+            min-width: 100px;
+            margin: 0;
+        }
+
+        /* 添加语言选择器标签样式 */
+        .lang-label {
+            color: #666;
+            font-size: 14px;
+            margin-right: 5px;
+        }
+
+        /* 添加语言选择器的分隔符样式 */
+        .lang-separator {
+            color: #666;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <img src="{{ url_for('static', filename='favicon.ico') }}" 
+                     alt="翻译" 
+                     class="d-inline-block align-text-top me-2" 
+                     width="24" 
+                     height="24">
+                机器翻译系统
+            </span>
+            <div>
+                <a href="/logs" class="btn btn-outline-light">翻译日志</a>
+                <a href="/system-logs" class="btn btn-outline-light ms-2">系统日志</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="translation-container">
+        <!-- 左侧输入框 -->
+        <div class="translation-box">
+            <div class="language-selector">
+                <select id="sourceLang">
+                    {% for lang, code in languages.items() %}
+                    <option value="{{ code }}" {% if code == 'auto' %}selected{% endif %}>{{ lang }}</option>
+                    {% endfor %}
+                </select>
+                <button class="image-upload-btn" onclick="document.getElementById('imageInput').click()">
+                    <img src="{{ url_for('static', filename='images/image.svg') }}" alt="图片翻译" class="icon">
+                    图片翻译
+                </button>
+                <input type="file" id="imageInput" accept="image/*" style="display: none" onchange="handleImageUpload(this)">
+            </div>
+            <textarea id="sourceText" placeholder="输入要翻译的文本或内容" maxlength="1000"></textarea>
+            <div class="status-bar">
+                <div class="char-counter"><span id="charCount">0</span>/1000</div>
+                <div class="button-group">
+                    <button class="speech-button" onclick="toggleSpeech('sourceText', this)">
+                        <img src="{{ url_for('static', filename='images/speaker.svg') }}" alt="朗读" class="icon">
+                    </button>
+                    <button class="speech-button" onclick="copyText('sourceText', this)">
+                        <img src="{{ url_for('static', filename='images/copy.svg') }}" alt="复制" class="icon">
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧翻译结果框 -->
+        <div class="translation-box">
+            <div class="language-selector">
+                <select id="targetLang">
+                    {% for lang, code in languages.items() %}
+                        {% if code != 'auto' %}
+                        <option value="{{ code }}" {% if code == 'zh' %}selected{% endif %}>{{ lang }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <textarea id="translatedText" readonly></textarea>
+            <div class="status-bar">
+                <div id="qualityScore"></div>
+                <div class="button-group">
+                    <button class="speech-button" onclick="toggleSpeech('translatedText', this)">
+                        <img src="{{ url_for('static', filename='images/speaker.svg') }}" alt="朗读" class="icon">
+                    </button>
+                    <button class="speech-button" onclick="copyText('translatedText', this)">
+                        <img src="{{ url_for('static', filename='images/copy.svg') }}" alt="复制" class="icon">
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加图片预览和翻译结果的模态框 -->
+    <div class="modal fade" id="imageModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">图片翻译</h5>
+                    <div class="language-selector">
+                        <span class="lang-label">从</span>
+                        <select id="imageSourceLang" onchange="retranslateImage()">
+                            {% for lang, code in languages.items() %}
+                                {% if code == 'auto' %}
+                                <option value="{{ code }}" selected>{{ lang }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <span class="lang-separator">→</span>
+                        <span class="lang-label">到</span>
+                        <select id="imageTargetLang" onchange="retranslateImage()">
+                            {% for lang, code in languages.items() %}
+                                {% if code != 'auto' %}
+                                <option value="{{ code }}" {% if code == 'en' %}selected{% endif %}>{{ lang }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>原图</h6>
+                            <img id="imagePreview" class="img-fluid" alt="预览图">
+                        </div>
+                        <div class="col-md-6">
+                            <h6>翻译结果</h6>
+                            <div id="imageTranslation" class="translation-result"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入jQuery库 -->
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script>
+        document.getElementById('sourceText').addEventListener('input', function() {
+            const text = this.value;
+            const toLang = document.getElementById('targetLang').value;
+
+            if (!text) {
+                document.getElementById('translatedText').value = '';
+                document.getElementById('qualityScore').textContent = '';
+                // 当输入框为空时，重置为自动检测
+                document.getElementById('sourceLang').value = 'auto';
+                return;
+            }
+
+            // 每次输入都使用自动检测
+            fetch('/translate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: text,
+                    from_lang: 'auto',  // 始终使用自动检测
+                    to_lang: toLang
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                document.getElementById('translatedText').value = data.translated_text;
+                document.getElementById('qualityScore').textContent = 
+                    `翻译质量评分：${data.quality_score}分`;
+                
+                // 更新源语言选择框
+                const sourceLangSelect = document.getElementById('sourceLang');
+                if (data.detected_lang) {
+                    // 如果检测到语言，更新选择框
+                    sourceLangSelect.value = data.detected_lang;
+                } else {
+                    // 如果没有检测到语言，设置为自动检测
+                    sourceLangSelect.value = 'auto';
+                }
+            })
+            .catch(error => {
+                console.error('翻译失败：', error);
+            });
+        });
+        
+        // 源语言或目标语言改变时触发翻译
+        document.getElementById('sourceLang').addEventListener('change', function() {
+            const sourceText = document.getElementById('sourceText');
+            if (sourceText.value) {
+                sourceText.dispatchEvent(new Event('input'));
+            }
+        });
+
+        // 目标语言改变时也触发翻译
+        document.getElementById('targetLang').addEventListener('change', function() {
+            const sourceText = document.getElementById('sourceText');
+            if (sourceText.value) {
+                sourceText.dispatchEvent(new Event('input'));
+            }
+        });
+
+        // 字数统计功能
+        document.getElementById('sourceText').addEventListener('input', function() {
+            const maxLength = 1000;
+            const currentLength = this.value.length;
+            document.getElementById('charCount').textContent = currentLength;
+            
+            // 如果超过限制，截断文本
+            if (currentLength > maxLength) {
+                this.value = this.value.substring(0, maxLength);
+            }
+        });
+
+        let currentSpeakingButton = null;  // 记录当前正在播放的按钮
+
+        // 切换语音播放/暂停
+        function toggleSpeech(elementId, button) {
+            if (currentSpeakingButton === button) {
+                // 如果点击的是当前正在播放的按钮，则停止播放
+                window.speechSynthesis.cancel();
+                button.classList.remove('speaking');
+                currentSpeakingButton = null;
+            } else {
+                // 如果有其他按钮正在播放，先停止它
+                if (currentSpeakingButton) {
+                    currentSpeakingButton.classList.remove('speaking');
+                    window.speechSynthesis.cancel();
+                }
+                
+                // 开始新的播放
+                const text = document.getElementById(elementId).value;
+                if (!text) return;
+                
+                const lang = elementId === 'sourceText' ? 
+                    document.getElementById('sourceLang').value : 
+                    document.getElementById('targetLang').value;
+                    
+                const langMap = {
+                    'zh': 'zh-CN',
+                    'en': 'en-US',
+                    'jp': 'ja-JP',
+                    'kor': 'ko-KR',
+                    'fra': 'fr-FR',
+                    'de': 'de-DE',
+                    'ru': 'ru-RU',
+                    'spa': 'es-ES',
+                    'it': 'it-IT',
+                    'pt': 'pt-PT',
+                    'vie': 'vi-VN',
+                    'th': 'th-TH',
+                    'ara': 'ar-SA'
+                };
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = langMap[lang] || 'en-US';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                
+                // 添加播放结束事件处理
+                utterance.onend = function() {
+                    button.classList.remove('speaking');
+                    currentSpeakingButton = null;
+                };
+                
+                button.classList.add('speaking');
+                currentSpeakingButton = button;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // 在输入内容变化时停止语音
+        document.getElementById('sourceText').addEventListener('input', function() {
+            if (currentSpeakingButton) {
+                currentSpeakingButton.classList.remove('speaking');
+                window.speechSynthesis.cancel();
+                currentSpeakingButton = null;
+            }
+        });
+
+        // 在语言选择变化时停止语音
+        document.getElementById('sourceLang').addEventListener('change', function() {
+            if (currentSpeakingButton) {
+                currentSpeakingButton.classList.remove('speaking');
+                window.speechSynthesis.cancel();
+                currentSpeakingButton = null;
+            }
+        });
+
+        document.getElementById('targetLang').addEventListener('change', function() {
+            if (currentSpeakingButton) {
+                currentSpeakingButton.classList.remove('speaking');
+                window.speechSynthesis.cancel();
+                currentSpeakingButton = null;
+            }
+        });
+
+        // 在页面离开或刷新时停止语音
+        window.addEventListener('beforeunload', function() {
+            window.speechSynthesis.cancel();
+        });
+
+        // 在页面隐藏时停止语音
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && currentSpeakingButton) {
+                currentSpeakingButton.classList.remove('speaking');
+                window.speechSynthesis.cancel();
+                currentSpeakingButton = null;
+            }
+        });
+
+        // 复制文本功能
+        function copyText(elementId, button) {
+            const text = document.getElementById(elementId).value;
+            if (!text) return;
+            
+            // 复制文本到剪贴板
+            navigator.clipboard.writeText(text).then(() => {
+                // 显示复制成功的视觉反馈
+                button.classList.add('copy-success');
+                setTimeout(() => {
+                    button.classList.remove('copy-success');
+                }, 1000);
+            }).catch(err => {
+                console.error('复制失败:', err);
+            });
+        }
+
+        let currentImageFile = null;  // 保存当前图片文件的引用
+        let imageModal = null;  // 保存模态框实例
+
+        // 在页面加载完成后初始化模态框
+        document.addEventListener('DOMContentLoaded', function() {
+            imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        });
+
+        function handleImageUpload(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                currentImageFile = file;  // 保存图片文件引用
+                
+                // 显示图片预览
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('imagePreview').src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+                
+                // 上传图片并获取翻译结果
+                translateImage(file, 'en');  // 默认翻译为英文
+                
+                input.value = '';
+            }
+        }
+
+        function translateImage(file, toLang) {
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('to_lang', toLang);
+            
+            fetch('/translate_image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                // 显示翻译结果
+                const translationDiv = document.getElementById('imageTranslation');
+                translationDiv.innerHTML = '';
+                
+                if (data.data && data.data.content) {
+                    data.data.content.forEach(item => {
+                        const p = document.createElement('p');
+                        p.textContent = item.dst;
+                        translationDiv.appendChild(p);
+                    });
+                }
+                
+                // 使用已存在的模态框实例
+                if (!imageModal._isShown) {  // 如果模态框没有显示，才显示它
+                    imageModal.show();
+                }
+            })
+            .catch(error => {
+                console.error('图片翻译失败：', error);
+                alert('图片翻译失败：' + error.message);
+            });
+        }
+
+        function retranslateImage() {
+            if (currentImageFile) {
+                const toLang = document.getElementById('imageTargetLang').value;
+                translateImage(currentImageFile, toLang);
+            }
+        }
+    </script>
+</body>
+</html>

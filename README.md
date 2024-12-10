@@ -216,7 +216,7 @@ def log(level, module, message, details=None):
 
 ### 文本翻译接口
 
-```
+```http
 POST /translate_image
 Content-Type: multipart/form-data
 ```
